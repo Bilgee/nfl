@@ -22,6 +22,7 @@ def detect(save_img=False):
     webcam = source.isnumeric() or source.endswith('.txt') or source.lower().startswith(
         ('rtsp://', 'rtmp://', 'http://'))
 
+
     # Directories
     save_dir = Path(increment_path(Path(opt.project) / opt.name, exist_ok=opt.exist_ok))  # increment run
     (save_dir / 'labels' if save_txt else save_dir).mkdir(parents=True, exist_ok=True)  # make dir
@@ -61,6 +62,7 @@ def detect(save_img=False):
     t0 = time.time()
     img = torch.zeros((1, 3, imgsz, imgsz), device=device)  # init img
     _ = model(img.half() if half else img) if device.type != 'cpu' else None  # run once
+    
     for path, img, im0s, vid_cap in dataset:
         img = torch.from_numpy(img).to(device)
         img = img.half() if half else img.float()  # uint8 to fp16/32
@@ -124,7 +126,7 @@ def detect(save_img=False):
                                     ) )
 
             # Print time (inference + NMS)
-            print('%sDone. (%.3fs)' % (s, t2 - t1))
+            # print('%sDone. (%.3fs)' % (s, t2 - t1))
 
             # Stream results
             if view_img:
@@ -158,7 +160,7 @@ def detect(save_img=False):
     df = pd.DataFrame(data=data, columns=columns)
     df.to_csv(f'{opt.csv_name}', index=False)
 
-    print('Done. (%.3fs)' % (time.time() - t0))
+    # print('Done. (%.3fs)' % (time.time() - t0))
 
 
 if __name__ == '__main__':
