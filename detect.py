@@ -13,9 +13,11 @@ from utils.general import check_img_size, non_max_suppression, apply_classifier,
     strip_optimizer, set_logging, increment_path
 from utils.plots import plot_one_box
 from utils.torch_utils import select_device, load_classifier, time_synchronized
+import pandas as pd
 
 
 def detect(save_img=False):
+    data = []
     source, weights, view_img, save_txt, imgsz = opt.source, opt.weights, opt.view_img, opt.save_txt, opt.img_size
     webcam = source.isnumeric() or source.endswith('.txt') or source.lower().startswith(
         ('rtsp://', 'rtmp://', 'http://'))
@@ -86,7 +88,13 @@ def detect(save_img=False):
                 p, s, im0 = Path(path), '', im0s
 
             save_path = str(save_dir / p.name)
+            # print(save_path)
+            
             txt_path = str(save_dir / 'labels' / p.stem) + ('_%g' % dataset.frame if dataset.mode == 'video' else '')
+            # img_name = p.stem + '_%g' % dataset.frame
+            # print(img_name)
+            
+            
             s += '%gx%g ' % img.shape[2:]  # print string
             gn = torch.tensor(im0.shape)[[1, 0, 1, 0]]  # normalization gain whwh
             if len(det):
@@ -108,7 +116,12 @@ def detect(save_img=False):
 
                     if save_img or view_img:  # Add bbox to image
                         label = '%s %.2f' % (names[int(cls)], conf)
+                        score = '%.2f' % conf
                         plot_one_box(xyxy, im0, label=label, color=colors[int(cls)], line_thickness=3)
+                        # columns = ['scores','video','frame','class','x1','y1','x2','y2']
+                        data.append( (score, p.stem, dataset.frame, names[int(cls)], 
+                                      int(xyxy[0]), int(xyxy[1]), int(xyxy[2]), int(xyxy[3]) 
+                                    ) )
 
             # Print time (inference + NMS)
             print('%sDone. (%.3fs)' % (s, t2 - t1))
@@ -131,6 +144,7 @@ def detect(save_img=False):
 
                         fourcc = 'mp4v'  # output video codec
                         fps = vid_cap.get(cv2.CAP_PROP_FPS)
+                        fps = 4
                         w = int(vid_cap.get(cv2.CAP_PROP_FRAME_WIDTH))
                         h = int(vid_cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
                         vid_writer = cv2.VideoWriter(save_path, cv2.VideoWriter_fourcc(*fourcc), fps, (w, h))
@@ -139,6 +153,10 @@ def detect(save_img=False):
     if save_txt or save_img:
         s = f"\n{len(list(save_dir.glob('labels/*.txt')))} labels saved to {save_dir / 'labels'}" if save_txt else ''
         print(f"Results saved to {save_dir}{s}")
+
+    columns = ['scores','video','frame','class','x1','y1','x2','y2']
+    df = pd.DataFrame(data=data, columns=columns)
+    df.to_csv(f'{opt.csv_name}', index=False)
 
     print('Done. (%.3fs)' % (time.time() - t0))
 
@@ -161,13 +179,10 @@ if __name__ == '__main__':
     parser.add_argument('--project', default='runs/detect', help='save results to project/name')
     parser.add_argument('--name', default='exp', help='save results to project/name')
     parser.add_argument('--exist-ok', action='store_true', help='existing project/name ok, do not increment')
+    parser.add_argument('--csv-name', default='predictions', help='csv filename')
     opt = parser.parse_args()
     print(opt)
+    
 
     with torch.no_grad():
-        if opt.update:  # update all models (to fix SourceChangeWarning)
-            for opt.weights in ['yolov5s.pt', 'yolov5m.pt', 'yolov5l.pt', 'yolov5x.pt']:
-                detect()
-                strip_optimizer(opt.weights)
-        else:
-            detect()
+        detect()
